@@ -193,8 +193,8 @@ if __name__ == '__main__':
 
     print('client, available, held, total, locked', flush=True)
 
-    pool = Pool()
     client_ids = data['client'].unique().tolist()
+    pool = Pool()
 
     # start a worker for each client_id
     for _, client_id in enumerate(client_ids):
