@@ -1,0 +1,288 @@
+type,client,tx,amount
+
+# === BASIC FLOWS ===
+# deposit/withdraw with dispute resolved
+deposit, 1, 10, 1.0
+withdrawal, 1, 11, 1.0
+dispute, 1, 10,
+resolve, 1, 10,
+
+# deposit/withdraw with dispute chargeback
+deposit, 2, 20, 1.0
+withdrawal, 2, 21, 1.0
+dispute, 2, 20,
+chargeback, 2, 20,
+
+# === BASIC INVALID OPERATIONS ===
+#, deposit/withdraw with invalid dispute/resolve/chatgeback
+deposit, 3, 30, 1.0
+withdrawal, 3, 31, 0.5
+dispute, 3, 10,
+resolve, 3, 10,
+chargeback, 3, 10,
+
+# invalid dispute/resolve/chargeback - transaction is not in system yet
+dispute, 4, 40,
+chargeback, 4, 40,
+resolve, 4, 40,
+# transaction appears in system
+deposit, 4, 40, 4.0
+# invalid resolve/chargeback - without dispute
+chargeback, 4, 40,
+resolve, 4, 40,
+
+# invalid dispute/resolve/chargeback - client does not exist, transaction does not exist
+dispute, 5, 1,
+resolve, 6, 1,
+chargeback, 7, 1,
+
+
+
+# === SAME DISPUTE MULTIPLE TIMES ===
+
+# dispute while dispute active
+deposit, 20, 200, 0.0001
+dispute, 20, 200,
+dispute, 20, 200,
+resolve, 20, 200,
+resolve, 20, 200,
+
+# dispute after resolved
+deposit, 21, 210, 0.9999
+dispute, 21, 210,
+resolve, 21, 210,
+dispute, 21, 210,
+resolve, 21, 210,
+
+# dispute after chargeback
+deposit, 22, 220, 0.9999
+dispute, 22, 220,
+chargeback, 22, 220,
+dispute, 22, 220,
+
+#  === MULTIPLE DISPUTES ===
+
+# 2 disputes-check held
+deposit, 30, 300, 1.0
+deposit, 30, 301, 2.0
+withdrawal, 30, 302, 3.0
+dispute, 30, 300,
+dispute, 30, 301,
+
+# 2 dispute-resolved, reversed order
+deposit, 31, 310, 1.0
+deposit, 31, 311, 2.0
+withdrawal, 31, 312, 3.0
+dispute, 31, 310,
+dispute, 31, 311,
+resolve, 31, 311,
+resolve, 31, 310,
+
+# 2 dispute-resolved
+deposit, 32, 320, 1.0
+deposit, 32, 321, 2.0
+withdrawal, 32, 322, 3.0
+dispute, 32, 320,
+dispute, 32, 321,
+resolve, 32, 320,
+resolve, 32, 321,
+
+# 2 dispute-chargeback
+deposit, 33, 330, 1.0
+deposit, 33, 331, 2.0
+withdrawal, 33, 332, 3.0
+dispute, 33, 330,
+dispute, 33, 331,
+chargeback, 33, 330,
+chargeback, 33, 331,
+
+# 2 dispute - resolve, chargeback
+deposit, 34, 340, 1.0
+deposit, 34, 341, 2.0
+withdrawal, 34, 342, 3.0
+dispute, 34, 340,
+dispute, 34, 341,
+resolve, 34, 340,
+chargeback, 34, 341,
+
+# 2 dispute - chargeback, resolve
+deposit, 35, 350, 1.0
+deposit, 35, 351, 2.0
+withdrawal, 35, 352, 3.0
+dispute, 35, 350,
+dispute, 35, 351,
+chargeback, 35, 350,
+resolve, 35, 351,
+
+# 2 dispute - reversed resolve, chargeback
+deposit, 36, 360, 1.0
+deposit, 36, 361, 2.0
+withdrawal, 36, 362, 3.0
+dispute, 36, 360,
+dispute, 36, 361,
+resolve, 36, 361,
+chargeback, 36, 360,
+
+# 2 dispute - reversed chargeback, resolve
+deposit, 37, 370, 1.0
+deposit, 37, 371, 2.0
+withdrawal, 37, 372, 3.0
+dispute, 37, 370,
+dispute, 37, 371,
+chargeback, 37, 371,
+resolve, 37, 370,
+
+# === DEPOSITS ===
+
+#  multiple deposit
+deposit, 50, 500, 0.9999
+deposit, 50, 501, .9999
+deposit, 50, 501, -0.0
+deposit, 50, 501, 1234567890123456
+
+# deposit while active dispute
+deposit, 51, 510, 1.0
+dispute, 51, 510,
+deposit, 51, 511, 2.0
+
+# deposit after resolved dispute
+deposit, 52, 520, 1.0
+dispute, 52, 520,
+resolve, 52, 520,
+deposit, 52, 521, 2.0
+
+# deposit after chargeback dispute
+deposit, 53, 530, 1.0
+deposit, 53, 531, 2.0
+dispute, 53, 530,
+chargeback, 53, 530,
+deposit, 53, 532, 0.5
+
+# === WITHDRAWALS ===
+
+# withdraw many times
+deposit, 60, 600, 10.0
+withdrawal, 60, 601, .0001
+withdrawal, 60, 602, .0001
+withdrawal, 60, 603, .0001
+withdrawal, 60, 604, .0020
+withdrawal, 60, 605, .0300
+withdrawal, 60, 606, .0400
+withdrawal, 60, 607, .5000
+withdrawal, 60, 608, 6.000
+withdrawal, 60, 609, 1.0101
+withdrawal, 60, 610, -0.0000
+
+# withdraw while active dispute - funds available
+deposit, 62, 620, 1.0
+deposit, 62, 621, 1.0
+dispute, 62, 620,
+withdrawal, 62, 622, .0001
+
+# withdraw while active dispute - funds not available
+deposit, 63, 630, 1.0
+dispute, 63, 630,
+withdrawal, 63, 632, .0001
+
+# withdraw after resolve
+deposit, 64, 640, 1.0
+dispute, 64, 640,
+resolve, 64, 640,
+withdrawal, 64, 642, .0001
+
+# withdraw after chargeback
+deposit, 65, 650, 1.0
+dispute, 65, 650,
+chargeback, 65, 650,
+withdrawal, 65, 652, .0001
+
+# withdraw while active dispute - negative funds available
+deposit, 66, 660, 1.0
+withdrawal, 66, 661, .3
+dispute, 66, 660,
+withdrawal, 66, 662, .0001
+
+# withdraw = handling big numbers
+deposit, 67, 670, 1234567890123456.0
+withdrawal, 67, 671, .1
+
+deposit, 68, 682, 1234567890123456.0001
+withdrawal, 68, 681, 1234567890123456.0
+
+# withdraw more than available
+deposit, 69, 690, 1.0
+withdrawal, 69, 691, 1.0001
+
+=== HELD ===
+
+# held for single dispute
+deposit, 70, 700, 1.0
+dispute, 70, 700,
+
+# held for multiple disputes
+deposit, 71, 710, 1.0
+deposit, 71, 711, 2.0
+dispute, 71, 710,
+dispute, 71, 711,
+
+# held for multiple disputes - reversed order
+deposit, 72, 720, 1.0
+deposit, 72, 721, 2.0
+dispute, 72, 721,
+dispute, 72, 720,
+
+# held - big numbers
+deposit, 73, 730, 1234567890123456.0
+withdrawal, 73, 731, 1234567890123456.0
+deposit, 73, 732, .0001
+withdrawal, 73, 733, .0001
+dispute, 73, 730,
+dispute, 73, 732,
+
+# maybe I'll need this later
+# scenarios for withdrawal dispute - currently undefined
+# withdraw  dispute with resolve
+
+deposit, 101, 1010, 1.0
+withdrawal, 101, 1011, 1.0
+dispute, 101, 1011,
+resolve, 101, 1011,
+
+# withdraw  dispute with chargeback
+deposit, 102, 1020, 123.0
+withdrawal, 102, 1021, 123.0
+dispute, 102, 1021,
+chargeback, 102, 1021,
+
+# withdrawal  dispute with chargeback resolution and funds available
+deposit, 109, 1090, 123.0
+withdrawal, 109, 1091, 124.0
+deposit, 109, 1092, 1.02
+dispute, 109, 1091,
+chargeback, 109, 1091,
+
+# withdrawal dispute with chargeback resolution and funds not available
+deposit, 110, 1100, 123.0
+withdrawal, 110, 1101, 124.0
+deposit, 110, 1102, 0.9999
+dispute, 110, 1101,
+chargeback, 110, 1101,
+
+# withdrawal  dispute with resolve resolution and funds available
+deposit, 111, 1110, 123.0
+withdrawal, 111, 1111, 124.0
+deposit, 111, 1112, 1.02
+dispute, 111, 1111,
+resolve, 111, 1111,
+
+# withdrawal dispute with resolve resolution and funds not available
+deposit, 112, 1120, 123.0
+withdrawal, 112, 1121, 124.0
+deposit, 112, 1122, 0.9999
+dispute, 112, 1121,
+resolve, 112, 1121,
+
+
+
+
+
