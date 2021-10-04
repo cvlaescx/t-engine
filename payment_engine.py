@@ -129,7 +129,7 @@ class Account(object):
         self.transactions_disputed += transactions_disputed
 
     def get_transaction(self, tx, requested_by='operation'):
-        transactions_disputed = [x for x in self.transactions_disputed if x[2] == tx]
+        transactions_disputed = [t for t in self.transactions_disputed if t[2] == tx]
         if len(transactions_disputed) != 1:
             logging.info('ignoring {operation} request for client {client_id} and tx {tx} '
                          'due to non-active dispute'.format(
@@ -174,36 +174,47 @@ class Account(object):
                     transaction=transaction_disputed))
 
 
-def print_balance(formatted_balance):
-    print(formatted_balance)
+class ParallelExecutor:
+    def __init__(self):
+        self.pool = Pool()
+
+    @staticmethod
+    def print_balance(formatted_balance):
+        print(formatted_balance)
+
+    @staticmethod
+    def calculate_client_balance(client_data):
+        account = Account(client_data)
+        return account.calculate_balance()
+
+    def schedule(self, args):
+        self.pool.apply_async(self.calculate_client_balance, args=args, callback=self.print_balance)
+
+    def wait(self):
+        self.pool.close()
+        self.pool.join()
 
 
-def calculate_client_balance(client_data):
-    account = Account(client_data)
-    return account.calculate_balance()
+def process_records(records):
+    print('client, available, held, total, locked', flush=True)
+    client_ids = records['client'].unique().tolist()
+    executor = ParallelExecutor()
+    for _, client_id in enumerate(client_ids):
+        client_records = records[records['client'] == client_id].replace({pd.NaT: None})
+        client_records_it = client_records.itertuples(index=False, name=None)
+        executor.schedule((list(client_records_it),))
+
+    executor.wait()
 
 
 if __name__ == '__main__':
 
     input_file = sys.argv[1]
 
-    data = pd.read_csv(input_file, header=0, comment="#")
+    input_data = pd.read_csv(input_file, header=0, comment="#")
     # this alternative is much slower but handles whitespaces from input file
     # data = pd.read_csv(input_file, header=0, comment="#", sep=r'\s*,\s*', encoding='ascii', engine='python')
 
-    print('client, available, held, total, locked', flush=True)
+    process_records(input_data)
 
-    client_ids = data['client'].unique().tolist()
-    pool = Pool()
-
-    # start a worker for each client_id
-    for _, client_id in enumerate(client_ids):
-        client_transactions = data[data['client'] == client_id].replace({pd.NaT: None})
-        client_transactions_it = client_transactions.itertuples(index=False, name=None)
-        pool.apply_async(calculate_client_balance,
-                         args=(list(client_transactions_it),),
-                         callback=print_balance)
-
-    pool.close()
-    pool.join()
 
