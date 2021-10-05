@@ -52,13 +52,26 @@ deposit, 21, 210, 0.9999
 dispute, 21, 210,
 resolve, 21, 210,
 dispute, 21, 210,
-resolve, 21, 210,
 
 # dispute after chargeback
 deposit, 22, 220, 0.9999
 dispute, 22, 220,
 chargeback, 22, 220,
 dispute, 22, 220,
+
+# resolve after chargeback - redundand case, but better to have it
+deposit, 23, 230, 0.9999
+dispute, 23, 230,
+chargeback, 23, 230,
+dispute, 23, 230,
+resolve, 23, 230,
+
+# chargeback after resolve - redundand case, but better to have it
+deposit, 24, 240, 0.9999
+dispute, 24, 240,
+resolve, 24, 240,
+dispute, 24, 240,
+chargeback, 24, 240,
 
 #  === MULTIPLE DISPUTES ===
 
@@ -213,7 +226,7 @@ withdrawal, 68, 681, 1234567890123456.0
 deposit, 69, 690, 1.0
 withdrawal, 69, 691, 1.0001
 
-=== HELD ===
+# === HELD ===
 
 # held for single dispute
 deposit, 70, 700, 1.0
@@ -238,6 +251,69 @@ deposit, 73, 732, .0001
 withdrawal, 73, 733, .0001
 dispute, 73, 730,
 dispute, 73, 732,
+
+# === UN-ORDERED TRANSACTIONS ===
+
+#un-ordered with resolve
+deposit, 80, 805, 2.3
+withdrawal, 80, 801, 1.0
+deposit, 80, 807, .5
+withdrawal, 80, 803, .6
+dispute, 80, 805,
+resolve, 80, 803,
+resolve, 80, 805,
+dispute, 80, 807,
+
+#un-ordered disputes with resolve-chargeback
+deposit, 81, 815, 2.3
+withdrawal, 81, 812, 1.0
+deposit, 81, 817, .5
+withdrawal, 81, 814, .6
+dispute, 81, 817,
+dispute, 81, 813,
+dispute, 81, 815,
+resolve, 81, 813,
+chargeback, 81, 815,
+resolve, 81, 817,
+
+#un-ordered disputes with chargeback-resolve
+deposit, 82, 825, 2.3
+withdrawal, 82, 822, 1.0
+deposit, 82, 827, .5
+withdrawal, 82, 824, .6
+dispute, 82, 827,
+dispute, 82, 823,
+dispute, 82, 825,
+resolve, 82, 823,
+resolve, 82, 827,
+chargeback, 82, 825,
+
+
+# === CONCURENT USERS ===
+# 2 users, disputes resolved
+deposit, 90, 905, 2.3
+withdrawal, 91, 901, 1.0
+deposit, 91, 907, .5
+withdrawal, 90, 903, .5
+dispute, 90, 905,
+resolve, 91, 907,
+resolve, 90, 905,
+
+# 3 users, one dispute with chargeback, 3 resolved
+deposit, 93, 935, 2.3
+withdrawal, 94, 931, 1.0
+deposit, 94, 937, .5
+deposit, 95, 932, .3
+withdrawal, 95, 930, .2
+withdrawal, 94, 933, .4
+withdrawal, 93, 934, .5
+dispute, 95, 932,
+dispute, 93, 935,
+withdrawal, 94, 935, .3
+chargeback, 95, 932,
+resolve, 93, 935,
+dispute, 94, 933,
+dispute, 94, 937,
 
 # maybe I'll need this later
 # scenarios for withdrawal dispute - currently undefined
