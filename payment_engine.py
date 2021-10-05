@@ -23,11 +23,12 @@ CHARGEBACK = 'chargeback'
 
 
 class Account(object):
-    def __init__(self, client_data_list=None):
-        _, client_id, _, _ = client_data_list[0]
-        
-        self.transactions_list = client_data_list
-        self.client_id = int(client_id)
+    def __init__(self, client_data_df=None):
+        client_id = client_data_df.iloc[0].client
+        client_data_df['row_index'] = client_data_df.index
+
+        self.transactions_df = client_data_df
+        self.client_id = client_id
         self.transactions_disputed_dict = {}  # {tx:transaction}
         self.transactions_solved_dict = {}  # {tx:transaction}
         self.last_index = 0
@@ -49,33 +50,30 @@ class Account(object):
 
     def calculate_balance(self) -> str:
         try:
-            for index, transaction in enumerate(self.transactions_list, 1):
-                self.last_index = index
+            for transaction in self.transactions_df.itertuples(index=False):
+                self.last_index = transaction.row_index
                 if self.locked:
-                    action, _, _, _ = transaction
-                    if action in [DEPOSIT, WITHDRAWAL]:
+                    if transaction.type in [DEPOSIT, WITHDRAWAL]:
                         logging.info('account for client {client_id} is locked. ignoring {transaction}'.format(
                             client_id=self.client_id,
-                            transaction=transaction))
+                            transaction=tuple(transaction)))
                         continue
                 self.dispatch_transaction(transaction)
 
         except Exception as e:
-            logging.error("{} produced unexpected error: {}".format(transaction, e))
+            logging.error("{} produced error: {}".format(tuple(transaction), e))
             traceback.print_exc()
             raise
 
         return self.printable_balance()
 
-    def dispatch_transaction(self, transaction_data) -> None:
-        action, _, tx, amount = transaction_data
-
-        method_name = 'transaction_' + action
+    def dispatch_transaction(self, transaction) -> None:
+        method_name = 'transaction_' + transaction.type
         method = getattr(self, method_name, lambda a, b: logging.info(
-            'ignoring invalid transaction {}'.format(transaction_data)))
+            'ignoring invalid transaction {}'.format(transaction)))
 
-        method(tx, amount)
-        logging.debug('processed {} --> <{}> '.format(transaction_data, self.printable_balance()))
+        method(transaction.tx, transaction.amount)
+        logging.debug('processed {} --> <{}> '.format(tuple(transaction), self.printable_balance()))
 
     def transaction_deposit(self, _, amount) -> None:
         self.available += amount
@@ -105,21 +103,20 @@ class Account(object):
                 self.transactions_disputed_dict[tx]))
             return
 
-        transactions_disputed = [t for index, t in enumerate(self.transactions_list, 1)
-                                 if (index < self.last_index) and (t[2] == tx) and (t[3] is not None)]
-        if len(transactions_disputed) != 1:
+        df = self.transactions_df
+        transactions_disputed_df = df[(df.row_index <= self.last_index) & (df.tx == tx) & (df.amount.notnull())]
+        if len(transactions_disputed_df) != 1:
             logging.error('fuzzy disputed transactions for client {client_id} and tx {tx} '
                           '--->  {size} {transactions} '.format(
                             client_id=self.client_id,
                             tx=tx,
-                            size=len(transactions_disputed),
-                            transactions=transactions_disputed))
+                            size=len(transactions_disputed_df),
+                            transactions=list(transactions_disputed_df.itertuples(index=False, name=None))))
             return
 
-        transaction_disputed = transactions_disputed[0]
-        action, _, _, amount = transaction_disputed
+        transaction_disputed = transactions_disputed_df.iloc[0]
 
-        if action != DEPOSIT:
+        if transaction_disputed.type != DEPOSIT:
             logging.warning('TODO: clarify rules for non-{deposit} dispute; '
                             'ignore dispute on {transaction} for the moment'.format(
                                 deposit=DEPOSIT,
@@ -127,11 +124,11 @@ class Account(object):
                             ))
             return
 
-        self.available -= amount
-        self.held      += amount
+        self.available -= transaction_disputed.amount
+        self.held      += transaction_disputed.amount
         self.transactions_disputed_dict[tx] = transaction_disputed
 
-    def get_transaction_disputed(self, tx, requested_by='action') -> tuple:
+    def get_transaction_disputed(self, tx, requested_by='action'):
         transaction_disputed = self.transactions_disputed_dict.get(tx, None)
         if transaction_disputed is None:
             logging.info('ignoring {action} request for client {client_id} and tx {tx} '
@@ -146,31 +143,29 @@ class Account(object):
         if transaction_disputed is None:
             return
 
-        action, _, _, amount = transaction_disputed
-        if action == DEPOSIT:
-            self.available += amount
-            self.held      -= amount
+        if transaction_disputed.type == DEPOSIT:
+            self.available += transaction_disputed.amount
+            self.held      -= transaction_disputed.amount
             del(self.transactions_disputed_dict[tx])
             self.transactions_solved_dict[tx] = transaction_disputed
         else:
             logging.error('Undefined {resolve} operation for {transaction}'.format(
                 resolve=RESOLVE,
-                transaction=transaction_disputed))
+                transaction=tuple(transaction_disputed)))
 
     def transaction_chargeback(self, tx, _) -> None:
         transaction_disputed = self.get_transaction_disputed(tx, requested_by=CHARGEBACK)
         if transaction_disputed is None:
             return
 
-        action, _, _, amount = transaction_disputed
-        if action == DEPOSIT:
+        if transaction_disputed.type == DEPOSIT:
             logging.warning('BUSINESS FLAG RED: Client {client_id} locked due to '
                             '{chargeback} {transaction}'.format(
                                 client_id=self.client_id,
                                 chargeback=CHARGEBACK,
-                                transaction=transaction_disputed))
-            self.total -= amount
-            self.held  -= amount
+                                transaction=tuple(transaction_disputed)))
+            self.total -= transaction_disputed.amount
+            self.held  -= transaction_disputed.amount
             self.locked = True
 
             del self.transactions_disputed_dict[tx]
@@ -178,7 +173,7 @@ class Account(object):
         else:
             logging.error('Undefined {chargeback} operation for {transaction}'.format(
                 chargeback=CHARGEBACK,
-                transaction=transaction_disputed))
+                transaction=tuple(transaction_disputed)))
 
 
 class ParallelExecutor:
@@ -190,8 +185,13 @@ class ParallelExecutor:
         print(formatted_balance)
 
     @staticmethod
-    def calculate_client_balance(client_records_list) -> str:
-        return Account(client_records_list).calculate_balance()
+    def calculate_client_balance(client_records_df) -> str:
+        try:
+            return Account(client_records_df).calculate_balance()
+        except Exception as e:
+            logging.error("Error: {}".format(e))
+            traceback.print_exc()
+            raise
 
     def schedule(self, client_records_list):
         self.pool.apply_async(self.calculate_client_balance,
@@ -209,9 +209,8 @@ def process_records(records_df):
     executor = ParallelExecutor()
 
     for _, client_id in enumerate(client_ids):
-        client_records_df = records_df[records_df['client'] == client_id].replace({pd.NaT: None})
-        client_records_it = client_records_df.itertuples(index=False, name=None)
-        executor.schedule((list(client_records_it),))
+        client_records_df = records_df[records_df['client'] == client_id]
+        executor.schedule((client_records_df,))
 
     executor.wait()
 
@@ -220,10 +219,11 @@ if __name__ == '__main__':
 
     input_file = sys.argv[1]
 
-    records_df = pd.read_csv(input_file, header=0, comment="#")
+    records_df = pd.read_csv(input_file, header=0, comment="#",
+                             dtype={'type': str, 'client': int, 'tx': int, 'amount': float})
+
     # this alternative is much slower but handles whitespaces from input file
-    # records_df = pd.read_csv(input_file, header=0, comment="#", sep=r'\s*,\s*', encoding='ascii', engine='python')
-
+    # records_df = pd.read_csv(input_file, header=0, comment="#",
+    #                          dtype={'type': str, 'client': int, 'tx':int, 'amount':float},
+    #                          sep=r'\s*,\s*', encoding='ascii', engine='python')
     process_records(records_df)
-
-
