@@ -116,10 +116,10 @@ class Account(object):
 
         transaction_disputed = transactions_disputed_df.iloc[0]
 
-        if transaction_disputed.type != DEPOSIT:
-            logging.warning('TODO: clarify rules for non-{deposit} dispute; '
-                            'ignore dispute on {transaction} for the moment'.format(
-                                deposit=DEPOSIT,
+        if transaction_disputed.type not in [DEPOSIT, WITHDRAWAL]:
+            logging.warning('TODO: clarify rules for {undef} dispute; '
+                            'ignore dispute on {transaction}'.format(
+                                undef=transaction_disputed.type,
                                 transaction=str(transaction_disputed)
                             ))
             return
@@ -143,37 +143,28 @@ class Account(object):
         if transaction_disputed is None:
             return
 
-        if transaction_disputed.type == DEPOSIT:
-            self.available += transaction_disputed.amount
-            self.held      -= transaction_disputed.amount
-            del(self.transactions_disputed_dict[tx])
-            self.transactions_solved_dict[tx] = transaction_disputed
-        else:
-            logging.error('Undefined {resolve} operation for {transaction}'.format(
-                resolve=RESOLVE,
-                transaction=tuple(transaction_disputed)))
+        self.available += transaction_disputed.amount
+        self.held      -= transaction_disputed.amount
+        del(self.transactions_disputed_dict[tx])
+        self.transactions_solved_dict[tx] = transaction_disputed
 
     def transaction_chargeback(self, tx, _) -> None:
         transaction_disputed = self.get_transaction_disputed(tx, requested_by=CHARGEBACK)
         if transaction_disputed is None:
             return
 
-        if transaction_disputed.type == DEPOSIT:
-            logging.warning('BUSINESS FLAG RED: Client {client_id} locked due to '
-                            '{chargeback} {transaction}'.format(
-                                client_id=self.client_id,
-                                chargeback=CHARGEBACK,
-                                transaction=tuple(transaction_disputed)))
-            self.total -= transaction_disputed.amount
-            self.held  -= transaction_disputed.amount
-            self.locked = True
+        self.total -= transaction_disputed.amount
+        self.held  -= transaction_disputed.amount
+        self.locked = True
 
-            del self.transactions_disputed_dict[tx]
-            self.transactions_solved_dict[tx] = transaction_disputed
-        else:
-            logging.error('Undefined {chargeback} operation for {transaction}'.format(
-                chargeback=CHARGEBACK,
-                transaction=tuple(transaction_disputed)))
+        del self.transactions_disputed_dict[tx]
+        self.transactions_solved_dict[tx] = transaction_disputed
+
+        logging.warning('BUSINESS FLAG RED: Client {client_id} locked due to '
+                        '{chargeback} {transaction}'.format(
+                            client_id=self.client_id,
+                            chargeback=CHARGEBACK,
+                            transaction=tuple(transaction_disputed)))
 
 
 class ParallelExecutor:

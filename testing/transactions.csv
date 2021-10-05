@@ -315,10 +315,10 @@ resolve, 93, 935,
 dispute, 94, 933,
 dispute, 94, 937,
 
-# maybe I'll need this later
-# scenarios for withdrawal dispute - currently undefined
-# withdraw  dispute with resolve
 
+# === WITHDRAWAL DISPUTE ===
+
+# withdraw  dispute with resolve
 deposit, 101, 1010, 1.0
 withdrawal, 101, 1011, 1.0
 dispute, 101, 1011,
