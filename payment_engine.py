@@ -173,7 +173,7 @@ class ParallelExecutor:
 
     @staticmethod
     def print_balance(formatted_balance):
-        print(formatted_balance)
+        print(formatted_balance, flush=True)
 
     @staticmethod
     def calculate_client_balance(client_records_df) -> str:
