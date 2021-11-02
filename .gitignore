@@ -30,5 +30,7 @@ Thumbs.db
 *.wmv
 
 *.pdf
+venv/
 
-
+*/target/
+*.lock
