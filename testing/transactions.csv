@@ -151,7 +151,7 @@ resolve, 37, 370,
 deposit, 50, 500, 0.9999
 deposit, 50, 501, .9999
 deposit, 50, 501, -0.0
-deposit, 50, 501, 1234567890123456
+deposit, 50, 501, 123456789012345678901234
 
 # deposit while active dispute
 deposit, 51, 510, 1.0
