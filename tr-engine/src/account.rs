@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-use crate::input::DFRecord;
+use crate::input::ClientRecord;
 use crate::input::ACTION;
-
 
 pub(super) struct Account {
     client_id: u16,
@@ -43,20 +42,16 @@ impl Account {
                  self.locked)
     }
 
-    fn println(&self) {
-        println!("{}", self.to_string());
-    }
-
-    fn tr_deposit(&mut self, record: &DFRecord){
-        let amount = record.amount.unwrap();
+    fn tr_deposit(&mut self, record: &ClientRecord){
+        let amount = record.amount;
         log::debug!("Processing deposit tx={}, amount={}",record.tx, amount);
         self.available = self.available + amount;
         self.total = self.total + amount;
     }
 
-    fn tr_withdrawal(&mut self, record: &DFRecord)  {
-        let amount = record.amount.unwrap();
-        log::debug!("Processing withdrawal tx={}, amount={}",record.tx, record.amount.unwrap());
+    fn tr_withdrawal(&mut self, record: &ClientRecord)  {
+        let amount = record.amount;
+        log::debug!("Processing withdrawal tx={}, amount={}",record.tx, record.amount);
         if amount <= self.available {
             self.available = self.available - amount;
             self.total = self.total - amount;
@@ -67,20 +62,25 @@ impl Account {
         }
     }
 
-    fn tr_dispute(&mut self, disputed_record: &Box<DFRecord>, client_records:&Vec<Box<DFRecord>> ) {
+    fn tr_dispute(&mut self,
+                  disputed_record: &ClientRecord,
+                  client_records:&Vec<ClientRecord>,
+                  index: usize) {
         let tx = disputed_record.tx;
-        let mut disputed_records:Vec<&Box<DFRecord>> = Vec::new();
-        for rec in client_records{
-            if rec.index> disputed_record.index {
+        log::debug!("Processing dispute tx={}",tx);
+
+        let mut disputed_records:Vec<i64> = Vec::new();
+        for (local_index, local_record) in client_records.iter().enumerate(){
+            if local_index > index {
                 break;
             }
-            if rec.tx != tx {
+            if local_record.tx != tx {
                 continue
             }
-            if rec.amount.is_none()  {
+            if local_record.amount < 0  {
                 continue
             }
-            disputed_records.push(rec);
+            disputed_records.push(local_record.amount);
         }
 
         if disputed_records.len() != 1 {
@@ -88,11 +88,8 @@ impl Account {
             self.client_id, tx, disputed_records.len(), disputed_records);
             return;
         }
-
-        log::debug!("Processing dispute tx={}",tx);
-
         if  self.transactions_solved.contains_key(&tx) {
-            log::debug!("already solved for client={} tx={:?} ",self.client_id, tx);
+            log::debug!("already solved dispute for client={} tx={:?} ",self.client_id, tx);
             return;
         }
         if  self.transactions_disputed.contains_key(&tx) {
@@ -100,14 +97,13 @@ impl Account {
             return;
         }
 
-
-        let amount:i64 = disputed_records[0].amount.unwrap();
+        let amount:i64 = disputed_records[0];
         self.available = self.available - amount;
         self.held = self.held + amount;
         self.transactions_disputed.insert(tx,amount);
     }
 
-    fn tr_resolve(&mut self, record: &DFRecord) {
+    fn tr_resolve(&mut self, record: &ClientRecord) {
         let tx = record.tx;
         log::debug!("Processing resolve tx={}",record.tx);
         let transaction_disputed = self.transactions_disputed.get(&tx);
@@ -120,7 +116,7 @@ impl Account {
         }
     }
 
-    fn tr_chargeback(&mut self, record: &DFRecord) {
+    fn tr_chargeback(&mut self, record: &ClientRecord) {
         let tx = record.tx;
         log::debug!("Processing chargeback tx={}",record.tx);
         let transaction_disputed = self.transactions_disputed.get(&tx);
@@ -136,27 +132,29 @@ impl Account {
         };
     }
 
-    pub(super) fn dispatch_transactions(&mut self, client_records: &Vec<Box<DFRecord>>) -> String {
+    pub(super) fn dispatch_transactions(&mut self, client_records: &Vec<ClientRecord>) -> String {
         log::debug!("Processing data for client {}", self.client_id);
 
-        for record in client_records {
+        for (index,record) in client_records.iter().enumerate() {
             if self.locked && (record.action == ACTION::DEPOSIT|| record.action == ACTION::WITHDRAWAL) {
                log::debug!("account for client {:?} is locked. ignoring action={}, tx={}, amount={:?}"
                    ,self.client_id,record.action, record.tx, record.amount);
             } else {
                 match record.action {
-                    ACTION::DEPOSIT => self.tr_deposit(&record),
-                    ACTION::WITHDRAWAL => self.tr_withdrawal(&record),
-                    ACTION::DISPUTE => self.tr_dispute(&record, &client_records),
-                    ACTION::RESOLVE => self.tr_resolve(&record),
-                    ACTION::CHARGEBACK => self.tr_chargeback(&record),
-                    _ => log::debug!("Cannot understand action={:?} tx={:?} amount={:?} for client={:?}",record.action, record.tx, record.amount,self.client_id),
+                    ACTION::DEPOSIT => self.tr_deposit(record),
+                    ACTION::WITHDRAWAL => self.tr_withdrawal(record),
+                    ACTION::DISPUTE => self.tr_dispute(record, client_records, index),
+                    ACTION::RESOLVE => self.tr_resolve(record),
+                    ACTION::CHARGEBACK => self.tr_chargeback(record),
+                    _ => log::debug!("Cannot understand action={:?} tx={:?} amount={:?} for client={:?}"
+                        ,record.action, record.tx, record.amount,self.client_id),
                 }
                 log::debug!("{}",self.to_string());
             }
         };
-        self.println();
-        self.to_string()
+        let account_status=self.to_string();
+        println!("{}",account_status);
+        account_status
     }
 
 }

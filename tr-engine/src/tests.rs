@@ -2,8 +2,7 @@
 pub fn client_transactions(client_id:u16) -> String {
     use crate::account::Account;
     use crate::input::load_data;
-    let input_data = load_data("../testing/transactions.csv");
-    let clients_records = input_data.unwrap();
+    let clients_records = load_data("../testing/transactions.csv");
 
     let mut account = Account::new(client_id);
     account.dispatch_transactions(&clients_records.get(&client_id).unwrap())
@@ -51,7 +50,6 @@ mod tests {
         client_transactions_52: (52, "52, 3.0000, 0.0000, 3.0000, false"),
         client_transactions_53: (53, "53, 2.0000, 0.0000, 2.0000, true"),
         client_transactions_60: (60, "60, 2.4176, 0.0000, 2.4176, false"),
-        // client_transactions_61: (61, "2, -1.0000, 0.0000, -1.0000, true"),
         client_transactions_62: (62, "62, 0.9999, 1.0000, 1.9999, false"),
         client_transactions_63: (63, "63, 0.0000, 1.0000, 1.0000, false"),
         client_transactions_64: (64, "64, 0.9999, 0.0000, 0.9999, false"),
