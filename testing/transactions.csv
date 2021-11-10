@@ -252,6 +252,12 @@ withdrawal, 73, 733, .0001
 dispute, 73, 730,
 dispute, 73, 732,
 
+deposit, 74, 740, 123456789012345.0
+withdrawal, 74, 741, 123456789012345.0
+deposit, 74, 742, .0001
+withdrawal, 74, 743, .0001
+dispute, 74, 740,
+dispute, 74, 742,
 # === UN-ORDERED TRANSACTIONS ===
 
 #un-ordered with resolve
