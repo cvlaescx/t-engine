@@ -17,8 +17,9 @@ impl ACTION {
 
 #[derive(Deserialize, Debug)]
 pub(crate) struct InputRecord {
-    #[serde(rename = "type", deserialize_with = "parse_type")]
-    action: u8,
+    // #[serde(rename = "type", deserialize_with = "parse_type")]
+    #[serde(rename = "type")]
+    action: String,
     client: u16,
     tx: u32,
     #[serde(deserialize_with = "parse_amount")]
@@ -27,7 +28,7 @@ pub(crate) struct InputRecord {
 
 #[derive(Debug)]
 pub(crate) struct ClientRecord {
-    pub(super) action: u8,
+    pub(super) action: String,
     pub(super) tx: u32,
     pub(super) amount: i64,
 }
@@ -35,25 +36,25 @@ pub(crate) struct ClientRecord {
 impl ClientRecord {
     pub(super) fn new(input_record:&InputRecord) -> ClientRecord {
         ClientRecord {
-            action: input_record.action,
+            action: input_record.action.clone(),
             tx: input_record.tx,
             amount: input_record.amount,
         }
     }
 }
-fn parse_type<'de, D>(d: D) -> Result<u8, D::Error> where D: Deserializer<'de> {
-    Deserialize::deserialize(d)
-        .map(|x: String| {
-            match x.as_str() {
-                "deposit" => ACTION::DEPOSIT,
-                "withdrawal" => ACTION::WITHDRAWAL,
-                "dispute" => ACTION::DISPUTE,
-                "resolve" => ACTION::RESOLVE,
-                "chargeback" => ACTION::CHARGEBACK,
-                _ => ACTION::UNKNOWN,
-            }
-        })
-}
+// fn parse_type<'de, D>(d: D) -> Result<u8, D::Error> where D: Deserializer<'de> {
+//     Deserialize::deserialize(d)
+//         .map(|x: String| {
+//             match x.as_str() {
+//                 "deposit" => ACTION::DEPOSIT,
+//                 "withdrawal" => ACTION::WITHDRAWAL,
+//                 "dispute" => ACTION::DISPUTE,
+//                 "resolve" => ACTION::RESOLVE,
+//                 "chargeback" => ACTION::CHARGEBACK,
+//                 _ => ACTION::UNKNOWN,
+//             }
+//         })
+// }
 
 fn parse_amount<'de, D>(d: D) -> Result<i64, D::Error> where D: Deserializer<'de> {
     Deserialize::deserialize(d)

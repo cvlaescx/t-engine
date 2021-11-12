@@ -134,18 +134,20 @@ impl Account {
 
     pub(super) fn dispatch_transactions(&mut self, client_records: &Vec<ClientRecord>) -> String {
         log::debug!("Processing data for client {}", self.client_id);
+        let action_deposit = String::from("deposit");
+        let action_withdrawal = String::from("withdrawal");
 
         for (index,record) in client_records.iter().enumerate() {
-            if self.locked && (record.action == ACTION::DEPOSIT|| record.action == ACTION::WITHDRAWAL) {
+            if self.locked && (record.action.eq(&action_deposit)|| record.action.eq(&action_withdrawal)) {
                log::debug!("account for client {:?} is locked. ignoring action={}, tx={}, amount={:?}"
                    ,self.client_id,record.action, record.tx, record.amount);
             } else {
-                match record.action {
-                    ACTION::DEPOSIT => self.tr_deposit(record),
-                    ACTION::WITHDRAWAL => self.tr_withdrawal(record),
-                    ACTION::DISPUTE => self.tr_dispute(record, client_records, index),
-                    ACTION::RESOLVE => self.tr_resolve(record),
-                    ACTION::CHARGEBACK => self.tr_chargeback(record),
+                match record.action.as_ref() {
+                    "deposit" => self.tr_deposit(record),
+                    "withdrawal" => self.tr_withdrawal(record),
+                    "dispute" => self.tr_dispute(record, client_records, index),
+                    "resolve" => self.tr_resolve(record),
+                    "chargeback" => self.tr_chargeback(record),
                     _ => log::debug!("Cannot understand action={:?} tx={:?} amount={:?} for client={:?}"
                         ,record.action, record.tx, record.amount,self.client_id),
                 }
