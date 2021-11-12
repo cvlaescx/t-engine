@@ -30,9 +30,8 @@ pub(crate) struct InputRecord {
     pub(super) amount: i64,
 }
 
-#[derive(Deserialize,Debug)]
+#[derive(Debug)]
 pub(crate) struct ClientRecord {
-    #[serde(rename = "type")]
     pub(super) action: u8,
     pub(super) tx: u32,
     pub(super) amount: i64,
@@ -46,18 +45,17 @@ impl ClientRecord {
 
 fn parse_type<'de, D>(d: D) -> Result<u8, D::Error> where D: Deserializer<'de> {
     Deserialize::deserialize(d)
-        .map(|x: &str| {
+        .map(|x: &[u8]| {
             match x {
-                "deposit" => ACTION::DEPOSIT,
-                "withdrawal" => ACTION::WITHDRAWAL,
-                "dispute" => ACTION::DISPUTE,
-                "resolve" => ACTION::RESOLVE,
-                "chargeback" => ACTION::CHARGEBACK,
+                b"deposit" => ACTION::DEPOSIT,
+                b"withdrawal" => ACTION::WITHDRAWAL,
+                b"dispute" => ACTION::DISPUTE,
+                b"resolve" => ACTION::RESOLVE,
+                b"chargeback" => ACTION::CHARGEBACK,
                 _ => ACTION::UNKNOWN,
             }
         })
 }
-
 fn parse_amount<'de, D>(d: D) -> Result<i64, D::Error> where D: Deserializer<'de> {
     Deserialize::deserialize(d)
         .map(|amount: Option<&str>| {
@@ -81,27 +79,22 @@ pub(super) fn load_data(file_name: String) -> Result<HashMap<u16,Vec<ClientRecor
         .comment(Some(b'#'))
         .trim(All)
         .from_reader(file);
-    // let mut rdr = csv::Reader::from_reader(io::stdin());
-    let mut raw_record = csv::StringRecord::new();
-    let headers = rdr.headers().unwrap().clone();
-
+    let mut raw_record = csv::ByteRecord::new();
+    let headers = rdr.byte_headers().unwrap().clone();
 
     let mut index:u32 = 0;
 
-    while rdr.read_record(&mut raw_record)? {
+    while rdr.read_byte_record(&mut raw_record)? {
 
-        let rezz = raw_record.deserialize(Some(&headers));
-        if rezz.is_err() {
-            panic!("{:?}",rezz);
+        let result = raw_record.deserialize(Some(&headers));
+        if result.is_err() {
+            panic!("{:?}", result);
         }
-        let record: InputRecord = rezz.unwrap();
+        let record: InputRecord = result.unwrap();
 
-        // if  result.is_err() {
-        //     panic!("{:?}", result);
-        // }
         index += 1; // this is only for debug purpose
         if index%100000 == 0 {
-            log::debug!("Read {} records",index);
+            println!("Read {} records",index);
         }
         let client_transactions =client_ids_map.entry(record.client).or_insert(Vec::new());
         client_transactions.push(ClientRecord::new(record.action, record.tx, record.amount));
