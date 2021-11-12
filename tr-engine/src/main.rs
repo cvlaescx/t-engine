@@ -16,7 +16,7 @@ use crate::input::load_data;
 
 static GLOBAL_THREAD_COUNT: AtomicUsize = AtomicUsize::new(0);
 fn process_clients(file_name:String) {
-    let clients_records = load_data(&file_name);
+    let clients_records = load_data(file_name.clone()).unwrap();
     println!("client, available, held, total, locked");
 
     for (client_id, client_records) in clients_records {

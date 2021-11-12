@@ -2,7 +2,7 @@
 pub fn client_transactions(client_id:u16) -> String {
     use crate::account::Account;
     use crate::input::load_data;
-    let clients_records = load_data("../testing/transactions.csv");
+    let clients_records = load_data("../testing/transactions.csv".to_string()).unwrap();
 
     let mut account = Account::new(client_id);
     account.dispatch_transactions(&clients_records.get(&client_id).unwrap())

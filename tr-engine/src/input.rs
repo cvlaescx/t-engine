@@ -3,6 +3,10 @@ use csv::Trim::All;
 use std::fs::File;
 use std::collections::HashMap;
 
+use std::error::Error;
+// use std::io;
+// use std::process;
+
 #[non_exhaustive]
 pub(crate) struct ACTION;
 
@@ -17,44 +21,42 @@ impl ACTION {
 
 #[derive(Deserialize, Debug)]
 pub(crate) struct InputRecord {
-    // #[serde(rename = "type", deserialize_with = "parse_type")]
-    #[serde(rename = "type")]
-    action: String,
-    client: u16,
-    tx: u32,
+    #[serde(rename = "type", deserialize_with = "parse_type")]
+    // #[serde(rename = "type")]
+    pub(super) action: u8,
+    pub(super) client: u16,
+    pub(super) tx: u32,
     #[serde(deserialize_with = "parse_amount")]
-    amount: i64,
+    pub(super) amount: i64,
 }
 
-#[derive(Debug)]
+#[derive(Deserialize,Debug)]
 pub(crate) struct ClientRecord {
-    pub(super) action: String,
+    #[serde(rename = "type")]
+    pub(super) action: u8,
     pub(super) tx: u32,
     pub(super) amount: i64,
 }
 
 impl ClientRecord {
-    pub(super) fn new(input_record:&InputRecord) -> ClientRecord {
-        ClientRecord {
-            action: input_record.action.clone(),
-            tx: input_record.tx,
-            amount: input_record.amount,
-        }
+    pub(super) fn new(action:u8, tx:u32, amount:i64) -> ClientRecord {
+        ClientRecord { action, tx, amount,}
     }
 }
-// fn parse_type<'de, D>(d: D) -> Result<u8, D::Error> where D: Deserializer<'de> {
-//     Deserialize::deserialize(d)
-//         .map(|x: String| {
-//             match x.as_str() {
-//                 "deposit" => ACTION::DEPOSIT,
-//                 "withdrawal" => ACTION::WITHDRAWAL,
-//                 "dispute" => ACTION::DISPUTE,
-//                 "resolve" => ACTION::RESOLVE,
-//                 "chargeback" => ACTION::CHARGEBACK,
-//                 _ => ACTION::UNKNOWN,
-//             }
-//         })
-// }
+
+fn parse_type<'de, D>(d: D) -> Result<u8, D::Error> where D: Deserializer<'de> {
+    Deserialize::deserialize(d)
+        .map(|x: &str| {
+            match x {
+                "deposit" => ACTION::DEPOSIT,
+                "withdrawal" => ACTION::WITHDRAWAL,
+                "dispute" => ACTION::DISPUTE,
+                "resolve" => ACTION::RESOLVE,
+                "chargeback" => ACTION::CHARGEBACK,
+                _ => ACTION::UNKNOWN,
+            }
+        })
+}
 
 fn parse_amount<'de, D>(d: D) -> Result<i64, D::Error> where D: Deserializer<'de> {
     Deserialize::deserialize(d)
@@ -71,7 +73,7 @@ fn parse_amount<'de, D>(d: D) -> Result<i64, D::Error> where D: Deserializer<'de
         })
 }
 
-pub(super) fn load_data(file_name: &str) -> HashMap<u16,Vec<ClientRecord>> {
+pub(super) fn load_data(file_name: String) -> Result<HashMap<u16,Vec<ClientRecord>>,Box<dyn Error>> {
     let mut client_ids_map:HashMap<u16,Vec<ClientRecord>> = HashMap::new();
 
     let file = File::open(file_name).unwrap();
@@ -79,21 +81,31 @@ pub(super) fn load_data(file_name: &str) -> HashMap<u16,Vec<ClientRecord>> {
         .comment(Some(b'#'))
         .trim(All)
         .from_reader(file);
+    // let mut rdr = csv::Reader::from_reader(io::stdin());
+    let mut raw_record = csv::StringRecord::new();
+    let headers = rdr.headers().unwrap().clone();
+
 
     let mut index:u32 = 0;
-    for result in rdr.deserialize() {
-        if  result.is_err() {
-            panic!("{:?}", result);
-        }
-        let input_record: InputRecord = result.unwrap();
 
+    while rdr.read_record(&mut raw_record)? {
+
+        let rezz = raw_record.deserialize(Some(&headers));
+        if rezz.is_err() {
+            panic!("{:?}",rezz);
+        }
+        let record: InputRecord = rezz.unwrap();
+
+        // if  result.is_err() {
+        //     panic!("{:?}", result);
+        // }
         index += 1; // this is only for debug purpose
         if index%100000 == 0 {
             log::debug!("Read {} records",index);
         }
-
-        let client_transactions =client_ids_map.entry(input_record.client).or_insert(Vec::new());
-        client_transactions.push(ClientRecord::new(&input_record));
+        let client_transactions =client_ids_map.entry(record.client).or_insert(Vec::new());
+        client_transactions.push(ClientRecord::new(record.action, record.tx, record.amount));
     }
-    client_ids_map
+
+    Ok(client_ids_map)
 }
