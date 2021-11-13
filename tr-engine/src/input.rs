@@ -37,12 +37,6 @@ pub(crate) struct ClientRecord {
     pub(super) amount: i64,
 }
 
-impl ClientRecord {
-    pub(super) fn new(action:u8, tx:u32, amount:i64) -> ClientRecord {
-        ClientRecord { action, tx, amount,}
-    }
-}
-
 fn parse_type<'de, D>(d: D) -> Result<u8, D::Error> where D: Deserializer<'de> {
     Deserialize::deserialize(d)
         .map(|x: &[u8]| {
@@ -56,6 +50,7 @@ fn parse_type<'de, D>(d: D) -> Result<u8, D::Error> where D: Deserializer<'de> {
             }
         })
 }
+
 fn parse_amount<'de, D>(d: D) -> Result<i64, D::Error> where D: Deserializer<'de> {
     Deserialize::deserialize(d)
         .map(|amount: Option<&str>| {
@@ -85,19 +80,14 @@ pub(super) fn load_data(file_name: String) -> Result<HashMap<u16,Vec<ClientRecor
     let mut index:u32 = 0;
 
     while rdr.read_byte_record(&mut raw_record)? {
-
-        let result = raw_record.deserialize(Some(&headers));
-        if result.is_err() {
-            panic!("{:?}", result);
-        }
-        let record: InputRecord = result.unwrap();
+        let record: InputRecord = raw_record.deserialize(Some(&headers)).unwrap();
 
         index += 1; // this is only for debug purpose
         if index%100000 == 0 {
             println!("Read {} records",index);
         }
         let client_transactions =client_ids_map.entry(record.client).or_insert(Vec::new());
-        client_transactions.push(ClientRecord::new(record.action, record.tx, record.amount));
+        client_transactions.push(ClientRecord{action:record.action, tx:record.tx, amount:record.amount});
     }
 
     Ok(client_ids_map)
